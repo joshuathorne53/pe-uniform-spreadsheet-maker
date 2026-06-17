@@ -12,6 +12,7 @@ const DEFAULT_BANDS = {
   B: [280, 520],
 };
 const EXCEL_FONT_SIZE = 10;
+const LAST_NAME_PREFIXES = new Set(["da", "de", "del", "della", "der", "di", "du", "la", "le", "van", "von"]);
 
 const fileInput = document.querySelector("#pdf-input");
 const dropzone = document.querySelector("#dropzone");
@@ -177,7 +178,7 @@ async function processFiles() {
       allRows.push(...rows);
     }
 
-    spreadsheetRows = allRows.sort((a, b) => a.Student.localeCompare(b.Student));
+    spreadsheetRows = allRows.sort(compareStudentsByLastName);
     renderTable(spreadsheetRows);
     const studentWord = spreadsheetRows.length === 1 ? "student" : "students";
     resultTitle.textContent = `${spreadsheetRows.length} ${studentWord} found`;
@@ -621,4 +622,47 @@ function isFiniteNumber(value) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function compareStudentsByLastName(a, b) {
+  const first = getStudentSortParts(a.Student);
+  const second = getStudentSortParts(b.Student);
+  const surnameComparison = first.surname.localeCompare(second.surname, undefined, { sensitivity: "base" });
+
+  if (surnameComparison !== 0) {
+    return surnameComparison;
+  }
+
+  const givenComparison = first.given.localeCompare(second.given, undefined, { sensitivity: "base" });
+
+  if (givenComparison !== 0) {
+    return givenComparison;
+  }
+
+  return first.full.localeCompare(second.full, undefined, { sensitivity: "base" });
+}
+
+function getStudentSortParts(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length <= 1) {
+    const full = parts.join(" ");
+    return { surname: full, given: "", full };
+  }
+
+  let surnameStart = parts.length - 1;
+
+  while (surnameStart > 0 && LAST_NAME_PREFIXES.has(normalizeNameToken(parts[surnameStart - 1]))) {
+    surnameStart -= 1;
+  }
+
+  return {
+    surname: parts.slice(surnameStart).join(" "),
+    given: parts.slice(0, surnameStart).join(" "),
+    full: parts.join(" "),
+  };
+}
+
+function normalizeNameToken(value) {
+  return String(value).toLowerCase().replace(/[^a-z]/g, "");
 }
