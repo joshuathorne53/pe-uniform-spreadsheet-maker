@@ -11,6 +11,7 @@ const DEFAULT_BANDS = {
   A: [40, 265],
   B: [280, 520],
 };
+const EXCEL_FONT_SIZE = 10;
 
 const fileInput = document.querySelector("#pdf-input");
 const dropzone = document.querySelector("#dropzone");
@@ -433,13 +434,15 @@ async function downloadFormattedXlsx(rows) {
 
   const worksheet = workbook.addWorksheet("PE Uniform Days", {
     views: [{ state: "frozen", xSplit: 1, ySplit: 1 }],
-    properties: { defaultRowHeight: 40 },
+    properties: { defaultRowHeight: 22 },
   });
+
+  const compactColumnWidths = calculateExcelColumnWidths(rows);
 
   worksheet.columns = HEADER_ROW.map((heading, index) => ({
     header: heading,
     key: heading,
-    width: index === 0 ? 24 : 28,
+    width: compactColumnWidths[index],
   }));
 
   for (const row of rows) {
@@ -455,7 +458,7 @@ async function downloadFormattedXlsx(rows) {
   };
 
   worksheet.eachRow((row, rowNumber) => {
-    row.height = rowNumber === 1 ? 28 : 46;
+    row.height = rowNumber === 1 ? 22 : calculateExcelRowHeight(row, compactColumnWidths);
 
     row.eachCell((cell, columnNumber) => {
       applyBaseExcelCellStyle(cell);
@@ -476,6 +479,55 @@ async function downloadFormattedXlsx(rows) {
   downloadBlob(buffer, "pe-uniform-days.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 
+function calculateExcelColumnWidths(rows) {
+  return HEADER_ROW.map((heading, index) => {
+    const values = [heading, ...rows.map((row) => row[heading] || "")].map((value) => String(value));
+    const longestWord = Math.max(...values.flatMap((value) => value.split(/\s+/)).map((word) => word.length));
+    const averageLength = values.reduce((sum, value) => sum + Math.min(value.length, 28), 0) / values.length;
+
+    if (index === 0) {
+      return clamp(Math.ceil(Math.max(longestWord + 2, averageLength * 0.82)), 16, 22);
+    }
+
+    return clamp(Math.ceil(Math.max(heading.length + 2, longestWord + 2, averageLength * 0.66)), 8, 19);
+  });
+}
+
+function calculateExcelRowHeight(row, columnWidths) {
+  let maxLineCount = 1;
+
+  row.eachCell((cell, columnNumber) => {
+    const value = String(cell.value || "");
+    const width = columnWidths[columnNumber - 1] || 12;
+    maxLineCount = Math.max(maxLineCount, estimateWrappedLineCount(value, width));
+  });
+
+  return clamp(17 + (maxLineCount - 1) * 10, 20, 38);
+}
+
+function estimateWrappedLineCount(value, width) {
+  if (!value) return 1;
+
+  const words = value.split(/\s+/).filter(Boolean);
+  let lineCount = 1;
+  let lineLength = 0;
+
+  for (const word of words) {
+    const wordLength = word.length;
+
+    if (lineLength === 0) {
+      lineLength = wordLength;
+    } else if (lineLength + 1 + wordLength <= width) {
+      lineLength += 1 + wordLength;
+    } else {
+      lineCount += 1;
+      lineLength = wordLength;
+    }
+  }
+
+  return lineCount;
+}
+
 function applyBaseExcelCellStyle(cell) {
   cell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
   cell.border = {
@@ -488,7 +540,7 @@ function applyBaseExcelCellStyle(cell) {
 
 function applyHeaderExcelCellStyle(cell, isStudentHeader) {
   cell.value = String(cell.value || "").toUpperCase();
-  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: 11 };
+  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: EXCEL_FONT_SIZE };
   cell.fill = {
     type: "pattern",
     pattern: "solid",
@@ -497,7 +549,7 @@ function applyHeaderExcelCellStyle(cell, isStudentHeader) {
 }
 
 function applyStudentExcelCellStyle(cell) {
-  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: 11 };
+  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: EXCEL_FONT_SIZE };
   cell.fill = {
     type: "pattern",
     pattern: "solid",
@@ -506,7 +558,7 @@ function applyStudentExcelCellStyle(cell) {
 }
 
 function applyHasClassExcelCellStyle(cell) {
-  cell.font = { bold: true, color: { argb: "FF0E625F" }, size: 11 };
+  cell.font = { bold: true, color: { argb: "FF0E625F" }, size: EXCEL_FONT_SIZE };
   cell.fill = {
     type: "pattern",
     pattern: "solid",
@@ -515,7 +567,7 @@ function applyHasClassExcelCellStyle(cell) {
 }
 
 function applyNoClassExcelCellStyle(cell) {
-  cell.font = { color: { argb: "FF82909B" }, size: 11 };
+  cell.font = { color: { argb: "FF82909B" }, size: EXCEL_FONT_SIZE };
   cell.fill = {
     type: "pattern",
     pattern: "solid",
@@ -565,4 +617,8 @@ function average(values) {
 
 function isFiniteNumber(value) {
   return Number.isFinite(value);
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
