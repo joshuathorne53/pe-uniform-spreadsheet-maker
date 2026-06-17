@@ -78,14 +78,26 @@ clearButton.addEventListener("click", () => {
   setStatus("Choose a PDF to begin.");
 });
 
-xlsxButton.addEventListener("click", () => {
-  if (!spreadsheetRows.length || !window.XLSX) return;
+xlsxButton.addEventListener("click", async () => {
+  if (!spreadsheetRows.length) return;
 
-  const worksheet = window.XLSX.utils.aoa_to_sheet(toSheetData(spreadsheetRows));
-  worksheet["!cols"] = [{ wch: 24 }, ...WEEK_COLUMNS.map(() => ({ wch: 28 }))];
-  const workbook = window.XLSX.utils.book_new();
-  window.XLSX.utils.book_append_sheet(workbook, worksheet, "PE Uniform Days");
-  window.XLSX.writeFile(workbook, "pe-uniform-days.xlsx");
+  if (!window.ExcelJS) {
+    setStatus("The Excel formatter is still loading. Try XLSX again in a moment.", true);
+    return;
+  }
+
+  xlsxButton.disabled = true;
+  setStatus("Formatting the Excel file...");
+
+  try {
+    await downloadFormattedXlsx(spreadsheetRows);
+    setStatus("Ready. Download the spreadsheet as XLSX or CSV.");
+  } catch (error) {
+    console.error(error);
+    setStatus("The formatted Excel file could not be created.", true);
+  } finally {
+    xlsxButton.disabled = spreadsheetRows.length === 0 || !window.ExcelJS;
+  }
 });
 
 csvButton.addEventListener("click", () => {
@@ -169,7 +181,7 @@ async function processFiles() {
     const studentWord = spreadsheetRows.length === 1 ? "student" : "students";
     resultTitle.textContent = `${spreadsheetRows.length} ${studentWord} found`;
     setStatus(`Ready. Download the spreadsheet as XLSX or CSV.`);
-    xlsxButton.disabled = spreadsheetRows.length === 0 || !window.XLSX;
+    xlsxButton.disabled = spreadsheetRows.length === 0 || !window.ExcelJS;
     csvButton.disabled = spreadsheetRows.length === 0;
     clearButton.disabled = false;
   } catch (error) {
@@ -411,6 +423,104 @@ function renderTable(rows) {
 
 function toSheetData(rows) {
   return [HEADER_ROW, ...rows.map((row) => HEADER_ROW.map((heading) => row[heading] || ""))];
+}
+
+async function downloadFormattedXlsx(rows) {
+  const workbook = new window.ExcelJS.Workbook();
+  workbook.creator = "PE Uniform Spreadsheet Maker";
+  workbook.created = new Date();
+  workbook.modified = new Date();
+
+  const worksheet = workbook.addWorksheet("PE Uniform Days", {
+    views: [{ state: "frozen", xSplit: 1, ySplit: 1 }],
+    properties: { defaultRowHeight: 40 },
+  });
+
+  worksheet.columns = HEADER_ROW.map((heading, index) => ({
+    header: heading,
+    key: heading,
+    width: index === 0 ? 24 : 28,
+  }));
+
+  for (const row of rows) {
+    worksheet.addRow(HEADER_ROW.reduce((output, heading) => {
+      output[heading] = row[heading] || "";
+      return output;
+    }, {}));
+  }
+
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: HEADER_ROW.length },
+  };
+
+  worksheet.eachRow((row, rowNumber) => {
+    row.height = rowNumber === 1 ? 28 : 46;
+
+    row.eachCell((cell, columnNumber) => {
+      applyBaseExcelCellStyle(cell);
+
+      if (rowNumber === 1) {
+        applyHeaderExcelCellStyle(cell, columnNumber === 1);
+      } else if (columnNumber === 1) {
+        applyStudentExcelCellStyle(cell);
+      } else if (/^No$/i.test(String(cell.value || ""))) {
+        applyNoClassExcelCellStyle(cell);
+      } else {
+        applyHasClassExcelCellStyle(cell);
+      }
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBlob(buffer, "pe-uniform-days.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+function applyBaseExcelCellStyle(cell) {
+  cell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+  cell.border = {
+    top: { style: "thin", color: { argb: "FFD8E1E8" } },
+    left: { style: "thin", color: { argb: "FFD8E1E8" } },
+    bottom: { style: "thin", color: { argb: "FFD8E1E8" } },
+    right: { style: "thin", color: { argb: "FFD8E1E8" } },
+  };
+}
+
+function applyHeaderExcelCellStyle(cell, isStudentHeader) {
+  cell.value = String(cell.value || "").toUpperCase();
+  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: 11 };
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: isStudentHeader ? "FFE5EEF3" : "FFEDF4F7" },
+  };
+}
+
+function applyStudentExcelCellStyle(cell) {
+  cell.font = { bold: true, color: { argb: "FF1F2933" }, size: 11 };
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFF8FAFB" },
+  };
+}
+
+function applyHasClassExcelCellStyle(cell) {
+  cell.font = { bold: true, color: { argb: "FF0E625F" }, size: 11 };
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8F7F4" },
+  };
+}
+
+function applyNoClassExcelCellStyle(cell) {
+  cell.font = { color: { argb: "FF82909B" }, size: 11 };
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFFFFFFF" },
+  };
 }
 
 function toCsv(data) {

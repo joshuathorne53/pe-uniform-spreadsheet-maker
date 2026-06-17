@@ -12,7 +12,7 @@ Static GitHub Pages app for turning student timetable PDFs into a spreadsheet of
   - Athletic Development
   - Agriculture
 - Creates columns for `MonA` through `FriA` and `MonB` through `FriB`.
-- Exports the result as `.xlsx` or `.csv`.
+- Exports the result as a formatted `.xlsx` workbook or a plain `.csv`.
 
 All processing happens in the browser. The PDFs are not uploaded to a server.
 
