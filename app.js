@@ -18,6 +18,9 @@ const controls = document.querySelector("#controls");
 const processButton = document.querySelector("#process-button");
 const clearButton = document.querySelector("#clear-button");
 const subjectsInput = document.querySelector("#subjects-input");
+const uploadIndicator = document.querySelector("#upload-indicator");
+const uploadIndicatorTitle = document.querySelector("#upload-indicator-title");
+const uploadIndicatorDetail = document.querySelector("#upload-indicator-detail");
 const statusLine = document.querySelector("#status-line");
 const resultTitle = document.querySelector("#result-title");
 const tableWrap = document.querySelector("#table-wrap");
@@ -29,6 +32,7 @@ let selectedFiles = [];
 let spreadsheetRows = [];
 
 window.addEventListener("DOMContentLoaded", () => {
+  updateUploadIndicator();
   if (window.lucide) {
     window.lucide.createIcons();
   }
@@ -70,6 +74,7 @@ clearButton.addEventListener("click", () => {
   tableWrap.hidden = true;
   resultsTable.innerHTML = "";
   resultTitle.textContent = "No timetable loaded yet";
+  updateUploadIndicator();
   setStatus("Choose a PDF to begin.");
 });
 
@@ -92,6 +97,7 @@ function setFiles(files) {
   selectedFiles = files.filter(isPdfFile);
   processButton.disabled = selectedFiles.length === 0;
   clearButton.disabled = selectedFiles.length === 0 && spreadsheetRows.length === 0;
+  updateUploadIndicator();
 
   if (!selectedFiles.length) {
     setStatus("Choose at least one PDF timetable.");
@@ -100,6 +106,37 @@ function setFiles(files) {
 
   const fileWord = selectedFiles.length === 1 ? "file" : "files";
   setStatus(`${selectedFiles.length} PDF ${fileWord} ready.`);
+}
+
+function updateUploadIndicator() {
+  const hasFiles = selectedFiles.length > 0;
+  uploadIndicator.classList.toggle("uploaded", hasFiles);
+
+  if (!hasFiles) {
+    uploadIndicator.querySelector(".upload-indicator-icon").setAttribute("data-lucide", "circle-dashed");
+    uploadIndicatorTitle.textContent = "No PDF uploaded";
+    uploadIndicatorDetail.textContent = "Choose a timetable PDF to show it here.";
+  } else {
+    const fileWord = selectedFiles.length === 1 ? "PDF uploaded" : "PDFs uploaded";
+    uploadIndicator.querySelector(".upload-indicator-icon").setAttribute("data-lucide", "circle-check");
+    uploadIndicatorTitle.textContent = `${selectedFiles.length} ${fileWord}`;
+    uploadIndicatorDetail.textContent = summarizeFileNames(selectedFiles);
+  }
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function summarizeFileNames(files) {
+  const visibleNames = files.slice(0, 3).map((file) => file.name);
+  const hiddenCount = files.length - visibleNames.length;
+
+  if (hiddenCount > 0) {
+    visibleNames.push(`+${hiddenCount} more`);
+  }
+
+  return visibleNames.join(", ");
 }
 
 async function processFiles() {
