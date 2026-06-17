@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PE Uniform Spreadsheet Maker</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="intro-panel" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Two-week timetable checker</p>
+          <h1 id="page-title">PE Uniform Spreadsheet Maker</h1>
+          <p class="lede">
+            Upload student timetable PDFs and create a spreadsheet showing which days each student has a PE-uniform class.
+          </p>
+        </div>
+
+        <div class="timetable-visual" aria-hidden="true">
+          <div class="mini-toolbar">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="mini-sheet">
+            <span class="name-cell">Student</span>
+            <span>MonA</span>
+            <span>TueA</span>
+            <span>WedA</span>
+            <span>ThuA</span>
+            <span>FriA</span>
+            <span class="name-cell">Summer</span>
+            <strong></strong>
+            <em></em>
+            <span></span>
+            <span></span>
+            <strong></strong>
+            <span class="name-cell">Toby</span>
+            <strong></strong>
+            <span></span>
+            <strong></strong>
+            <em></em>
+            <strong></strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form class="controls" id="controls">
+          <label class="dropzone" id="dropzone">
+            <input id="pdf-input" type="file" accept="application/pdf,.pdf" multiple>
+            <span class="drop-icon" data-lucide="file-up"></span>
+            <span class="drop-title">Drop timetable PDFs here</span>
+            <span class="drop-help">or choose files from your computer</span>
+          </label>
+
+          <div class="settings-grid">
+            <label class="field">
+              <span>Classes that require PE uniform</span>
+              <textarea id="subjects-input" rows="5" spellcheck="false">Outdoor Environmental Studies
+Physical Education
+Athletic Development
+Agriculture</textarea>
+            </label>
+
+            <fieldset class="field compact">
+              <legend>Output cells</legend>
+              <label class="radio-row">
+                <input type="radio" name="cell-mode" value="yes-subjects" checked>
+                <span>Yes plus class names</span>
+              </label>
+              <label class="radio-row">
+                <input type="radio" name="cell-mode" value="subjects">
+                <span>Class names only</span>
+              </label>
+              <label class="radio-row">
+                <input type="radio" name="cell-mode" value="yes-no">
+                <span>Yes or No only</span>
+              </label>
+            </fieldset>
+          </div>
+
+          <div class="action-row">
+            <button class="primary-action" id="process-button" type="submit" disabled>
+              <span data-lucide="sparkles"></span>
+              Make spreadsheet
+            </button>
+            <button class="secondary-action" id="clear-button" type="button" disabled>
+              <span data-lucide="trash-2"></span>
+              Clear
+            </button>
+          </div>
+        </form>
+
+        <section class="results" aria-live="polite">
+          <div class="results-head">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2 id="result-title">No timetable loaded yet</h2>
+            </div>
+            <div class="download-actions">
+              <button id="xlsx-button" type="button" disabled>
+                <span data-lucide="download"></span>
+                XLSX
+              </button>
+              <button id="csv-button" type="button" disabled>
+                <span data-lucide="file-down"></span>
+                CSV
+              </button>
+            </div>
+          </div>
+
+          <div class="status-line" id="status-line">Choose a PDF to begin.</div>
+
+          <div class="table-wrap" id="table-wrap" hidden>
+            <table id="results-table"></table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
